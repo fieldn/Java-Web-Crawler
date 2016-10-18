@@ -15,9 +15,3 @@ and run the example crawler.
 
 You need to modify these files if your JDK is not in
 C:\jdk1.6.0_18\bin.
-
-Open a Windows Command Prompt Window and type
-
-compile.bat
-run.bat
-
