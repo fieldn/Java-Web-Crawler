@@ -54,16 +54,11 @@ public class Crawler
 		stat.executeUpdate("CREATE TABLE URLS (urlid INT, url VARCHAR(512), description VARCHAR(200))");
 	}
 
-	public boolean urlInDB(String urlFound) throws SQLException, IOException {
-		Statement stat = connection.createStatement();
-		ResultSet result = stat.executeQuery( "SELECT * FROM urls WHERE url LIKE '"+urlFound+"'");
-
-		if (result.next()) {
-			//System.out.println("URL "+urlFound+" already in DB");
+	public boolean urlFound(String url) throws IOException {
+		if (knownUrls.contains(url))
 			return true;
-		}
-		// System.out.println("URL "+urlFound+" not yet in DB");
-		return false;
+		else 
+			return false;
 	}
 
 	public void insertURLInDB( String url) throws SQLException, IOException {
@@ -77,9 +72,11 @@ public class Crawler
 	public boolean validUrl(String link) {
 		if (link.contains("mailto:"))
 			return false;
+		else if (link.contains("#"))
+			return false;
 		else if (!link.substring(0, 4).equals("http"))
 			return false;
-		else if (link.contains("#"))
+		else if (!link.contains("purdue.edu"))
 			return false;
 		else if (link.substring(link.length() - 4, link.length()).equals(".pdf"))
 			return false;
@@ -87,22 +84,25 @@ public class Crawler
 			return true;
 	}
 
-	public void fetchURL(String urlScanned) {
+	public void fetchURL() {
 		try {
-			Document doc = Jsoup.connect(urlScanned).get();
+			String currentUrl = urlQueue.remove();
+			Document doc = Jsoup.connect(currentUrl).get();
 
 			Elements links = doc.select("a[href]");
-			for (Element link : links) {
-				String linkHref = link.attr("abs:href");
+			for (Element l : links) {
+				String link = l.attr("abs:href");
 				// Check it's a valid URL
-				if (validUrl(linkHref)) {
-					// Check if it is already in the database
-					if (!urlInDB(linkHref)) {
-						insertURLInDB(linkHref);
-						System.out.println(linkHref);
+				if (validUrl(link)) {
+					// Check if it is already found
+					if (!urlFound(link)) {
+						insertURLInDB(link);
+						urlQueue.add(link);
+						System.out.println(link);
 					}
 				}
 			}
+			fetchURL();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -115,7 +115,8 @@ public class Crawler
 			crawler.readProperties();
 			String root = crawler.props.getProperty("crawler.root");
 			crawler.createDB();
-			crawler.fetchURL(root);
+			crawler.urlQueue.add(root);
+			crawler.fetchURL();
 		} catch( Exception e) {
 			e.printStackTrace();
 		}
