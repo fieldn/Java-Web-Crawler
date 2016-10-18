@@ -3,6 +3,9 @@ import java.net.*;
 import java.util.regex.*;
 import java.sql.*;
 import java.util.*;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.*;
+import org.jsoup.select.*;
 
 public class Crawler
 {
