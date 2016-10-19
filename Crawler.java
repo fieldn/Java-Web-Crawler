@@ -72,40 +72,6 @@ public class Crawler
 		urlID++;
 	}
 
-/*
-	public String makeAbsoluteURL(String url, String parentURL) {
-		if (url.indexOf(":")<0) {
-			// the protocol part is already there.
-			return url;
-		}
-
-		if (url.length > 0 && url.charAt(0) == '/') {
-			// It starts with '/'. Add only host part.
-			int posHost = url.indexOf("://");
-			if (posHost <0) {
-				return url;
-			}
-			int posAfterHist = url.indexOf("/", posHost+3);
-			if (posAfterHist < 0) {
-				posAfterHist = url.Length();
-			}
-			String hostPart = url.substring(0, posAfterHost);
-			return hostPart + "/" + url;
-		} 
-
-		// URL start with a char different than "/"
-		int pos = parentURL.lastIndexOf("/");
-		int posHost = parentURL.indexOf("://");
-		if (posHost <0) {
-			return url;
-		}
-		
-		
-		
-
-	}
-*/
-
    	public void fetchURL(String urlScanned) {
 		try {
 			URL url = new URL(urlScanned);
