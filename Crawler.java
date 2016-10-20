@@ -13,6 +13,7 @@ public class Crawler
 	Connection connection;
 	Deque<String> urlQueue;
 	Set<String> knownUrls;
+	Map<String, ArrayList<String>> allWords;
 	int urlID;
 	public Properties props;
 
@@ -27,12 +28,13 @@ public class Crawler
 		"their","them","then","there","these","they","this","tis","to","too","twas",
 		"us","wants","was","we","were","what","when","where","which","while","who",
 		"whom","why","will","with","would","yet","you","your");
-	List<String> nonWords = Arrays.asList("<",">","::","|","-",")","(","–");
+	List<String> nonWords = Arrays.asList("<",">","::","|","-",")","(","–"," ","\t");
 
 	Crawler() {
 		urlID = 0;
 		urlQueue = new ConcurrentLinkedDeque<String>();
 		knownUrls = new ConcurrentSkipListSet<String>();
+		allWords = new HashMap<String, ArrayList<String>>();
 	}
 
 	public void readProperties() throws IOException {
@@ -97,33 +99,36 @@ public class Crawler
 			return false;
 		else if (link.substring(link.length() - 4, link.length()).equals(".doc"))
 			return false;
+		else if (link.substring(link.length() - 4, link.length()).equals(".jpg"))
+			return false;
 		else 
 			return true;
 	}
 
-	public void parseText(TextNode text) {
-		Set<String> words = new HashSet<String>();
-		String[] arr = text.text().toLowerCase().split("[ \"\t\"»•.?,–(&):©/;]");
+	public void parseText(String text, String url) {
+		String[] arr = text.toLowerCase().trim().split("[ \"\t\"»•.?,–&:©/;*]+");
 		for (String s: arr) {
-			if (stopWords.contains(s) || nonWords.contains(s))
+			if (stopWords.contains(s) || nonWords.contains(s)) {
 				continue;
-			else 
-				words.add(s);
+			} else {
+				if (allWords.containsKey(s)) {
+					allWords.get(s).add(url);
+				} else {
+					ArrayList<String> newList = new ArrayList<String>();
+					newList.add(url);
+					allWords.put(s, newList);
+				}
+			}
 		}
-		for (String s : words) {
-			System.out.print(s + " ");
-		}
-		System.out.println("TEXT OUTPUT");
-		System.out.println(text.text());
+		System.out.println(allWords.size());
 	}
 
 	public void fetchURL() {
 		try {
 			String currentUrl = urlQueue.remove();
 			Document doc = Jsoup.connect(currentUrl).get();
+			parseText(doc.text(), currentUrl);
 
-			TextNode text = new TextNode(doc.text(), currentUrl);
-			parseText(text);
 			Elements links = doc.select("a[href]");
 			for (Element l : links) {
 				String link = l.attr("abs:href");
@@ -138,8 +143,8 @@ public class Crawler
 					}
 				}
 			}
-			fetchURL();
 		} catch (Exception e) {
+			
 			e.printStackTrace();
 		}
 	}
@@ -153,8 +158,9 @@ public class Crawler
 			crawler.createDB();
 			crawler.urlQueue.add(root);
 			crawler.knownUrls.add(root);
-			crawler.fetchURL();
-
+			while(!crawler.urlQueue.isEmpty()) {
+				crawler.fetchURL();
+			}
 		} catch( Exception e) {
 			e.printStackTrace();
 		}
