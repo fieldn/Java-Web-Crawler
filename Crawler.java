@@ -17,6 +17,7 @@ public class Crawler implements Runnable
 	static int urlID = 0;
 	static public Properties props;
 	public static int count = 0;
+	private final ReentrantLock lock = new ReentrantLock();
 
 	List<String> stopWords = Arrays.asList("a","able","about","across","after","all","almost","also",
 			"am","among","an","and","any","are","as","at","be","because","been","but",
@@ -80,12 +81,19 @@ public class Crawler implements Runnable
 
 	public void insertURLInDB( String url) throws SQLException, IOException {
 		Statement stat = connection.createStatement();
-		//TODO lock
-		String query = "INSERT INTO urls VALUES ('"+urlID+"','"+url+"','')";
-		//System.out.println("Executing "+query);
-		stat.executeUpdate( query );
-		urlID++;
-		//TODO unlock
+		try {
+			lock.lock();
+			try {
+				String query = "INSERT INTO urls VALUES ('"+urlID+"','"+url+"','')";
+				//System.out.println("Executing "+query);
+				stat.executeUpdate( query );
+				urlID++;
+			} finally {
+				lock.unlock();
+			}
+		} catch(InterruptedException ie) {
+
+		}
 	}
 
 	public boolean validUrl(String link) {
@@ -93,7 +101,7 @@ public class Crawler implements Runnable
 			return false;
 		else if (link.contains("#"))
 			return false;
-		else if (!link.contains("purdue.edu"))
+		else if (!link.contains("cs.purdue.edu"))
 			return false;
 		else if (!link.substring(0, 4).equals("http"))
 			return false;
