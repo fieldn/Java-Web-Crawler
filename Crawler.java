@@ -8,43 +8,45 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.*;
 import org.jsoup.select.*;
 
-public class Crawler
+public class Crawler implements Runnable
 {
 	Connection connection;
-	Deque<String> urlQueue;
-	Set<String> knownUrls;
-	Map<String, ArrayList<String>> allWords;
-	int urlID;
-	public Properties props;
+	static Deque<String> urlQueue = new ConcurrentLinkedDeque<String>();
+	static Set<String> knownUrls = new ConcurrentSkipListSet<String>();
+	static Map<String, ArrayList<String>> allWords = new HashMap<String, ArrayList<String>>();
+	static int urlID = 0;
+	static public Properties props;
+	public static int count = 0;
 
 	List<String> stopWords = Arrays.asList("a","able","about","across","after","all","almost","also",
-		"am","among","an","and","any","are","as","at","be","because","been","but",
-		"by","can","cannot","could","dear","did","do","does","either","else","ever",
-		"every","for","from","get","got","had","has","have","he","her","hers","him",
-		"his","how","however","i","if","in","into","is","it","its","just","least",
-		"let","like","likely","may","me","might","most","must","my","neither","no",
-		"nor","not","of","off","often","on","only","or","other","our","own","rather",
-		"said","say","says","she","should","since","so","some","than","that","the",
-		"their","them","then","there","these","they","this","tis","to","too","twas",
-		"us","wants","was","we","were","what","when","where","which","while","who",
-		"whom","why","will","with","would","yet","you","your");
+			"am","among","an","and","any","are","as","at","be","because","been","but",
+			"by","can","cannot","could","dear","did","do","does","either","else","ever",
+			"every","for","from","get","got","had","has","have","he","her","hers","him",
+			"his","how","however","i","if","in","into","is","it","its","just","least",
+			"let","like","likely","may","me","might","most","must","my","neither","no",
+			"nor","not","of","off","often","on","only","or","other","our","own","rather",
+			"said","say","says","she","should","since","so","some","than","that","the",
+			"their","them","then","there","these","they","this","tis","to","too","twas",
+			"us","wants","was","we","were","what","when","where","which","while","who",
+			"whom","why","will","with","would","yet","you","your");
 	List<String> nonWords = Arrays.asList("<",">","::","|","-",")","(","–"," ","\t");
 
 	Crawler() {
-		urlID = 0;
-		urlQueue = new ConcurrentLinkedDeque<String>();
-		knownUrls = new ConcurrentSkipListSet<String>();
-		allWords = new HashMap<String, ArrayList<String>>();
+		try {
+		this.connection = openConnection();
+		} catch(Exception e) {
+
+		}
 	}
 
-	public void readProperties() throws IOException {
+	public static void readProperties() throws IOException {
 		props = new Properties();
 		FileInputStream in = new FileInputStream("database.properties");
 		props.load(in);
 		in.close();
 	}
 
-	public void openConnection() throws SQLException, IOException {
+	public static Connection openConnection() throws SQLException, IOException {
 		String drivers = props.getProperty("jdbc.drivers");
 		if (drivers != null) System.setProperty("jdbc.drivers", drivers);
 
@@ -52,12 +54,12 @@ public class Crawler
 		String username = props.getProperty("jdbc.username");
 		String password = props.getProperty("jdbc.password");
 
-		connection = DriverManager.getConnection( url, username, password);
+		return DriverManager.getConnection( url, username, password);
 	}
 
-	public void createDB() throws SQLException, IOException {
-		openConnection();
-		Statement stat = connection.createStatement();
+	public static void createDB() throws SQLException, IOException {
+		Connection c = openConnection();
+		Statement stat = c.createStatement();
 
 		// Delete the table first if any
 		try {
@@ -78,10 +80,12 @@ public class Crawler
 
 	public void insertURLInDB( String url) throws SQLException, IOException {
 		Statement stat = connection.createStatement();
+		//TODO lock
 		String query = "INSERT INTO urls VALUES ('"+urlID+"','"+url+"','')";
 		//System.out.println("Executing "+query);
 		stat.executeUpdate( query );
 		urlID++;
+		//TODO unlock
 	}
 
 	public boolean validUrl(String link) {
@@ -120,7 +124,7 @@ public class Crawler
 				}
 			}
 		}
-		System.out.println(allWords.size());
+		//System.out.println(allWords.size());
 	}
 
 	public void fetchURL() {
@@ -139,30 +143,48 @@ public class Crawler
 						insertURLInDB(link);
 						knownUrls.add(link);
 						urlQueue.add(link);
-						System.out.println(link);
+						//System.out.println(link);
 					}
 				}
 			}
+			count++;
+			if (count % 100 == 0) 
+				System.out.println(count);
 		} catch (Exception e) {
-			
-			e.printStackTrace();
+
+			//e.printStackTrace();
+		}
+	}
+
+	public void run() {
+		while (true) {
+			if (!urlQueue.isEmpty()) {
+				this.fetchURL();
+			} else {
+				try { Thread.sleep(10); } catch (Exception e) {}
+			}
 		}
 	}
 
 	public static void main(String[] args) {
-		Crawler crawler = new Crawler();
-
 		try {
-			crawler.readProperties();
-			String root = crawler.props.getProperty("crawler.root");
-			crawler.createDB();
-			crawler.urlQueue.add(root);
-			crawler.knownUrls.add(root);
-			while(!crawler.urlQueue.isEmpty()) {
-				crawler.fetchURL();
-			}
+			readProperties();
+			String root = props.getProperty("crawler.root");
+			createDB();
+			urlQueue.add(root);
+			knownUrls.add(root);
 		} catch( Exception e) {
 			e.printStackTrace();
+		}
+
+		Thread threads[] = new Thread[10];
+		for (int i = 0; i < threads.length; i++) {
+			threads[i] = new Thread(new Crawler());
+			threads[i].start();
+		}
+
+		for (int i = 0; i < threads.length; i++) {
+			try { threads[i].join(); } catch (Exception e) {}
 		}
 	}
 }
