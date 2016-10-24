@@ -2,6 +2,7 @@ import java.io.*;
 import java.net.*;
 import java.util.regex.*;
 import java.util.concurrent.*;
+import java.util.concurrent.locks.*;
 import java.sql.*;
 import java.util.*;
 import org.jsoup.Jsoup;
@@ -31,6 +32,9 @@ public class Crawler implements Runnable
 			"us","wants","was","we","were","what","when","where","which","while","who",
 			"whom","why","will","with","would","yet","you","your");
 	List<String> nonWords = Arrays.asList("<",">","::","|","-",")","(","–"," ","\t");
+	List<String> notHtml = Arrays.asList(".png",".jpg",".gif",".doc",".pdf",".PDF","vmdk","cow2",
+			"ps.Z",".zip",".JPG",".key","pptx",".xls",".ps",".gz",".tar",".ppt","jpeg","docx",
+			".tgz","ppsx",".wrz",".wrl");
 
 	Crawler() {
 		try {
@@ -81,18 +85,16 @@ public class Crawler implements Runnable
 
 	public void insertURLInDB( String url) throws SQLException, IOException {
 		Statement stat = connection.createStatement();
+		lock.lock();
 		try {
-			lock.lock();
-			try {
-				String query = "INSERT INTO urls VALUES ('"+urlID+"','"+url+"','')";
-				//System.out.println("Executing "+query);
-				stat.executeUpdate( query );
-				urlID++;
-			} finally {
-				lock.unlock();
-			}
-		} catch(InterruptedException ie) {
-
+			String query = "INSERT INTO urls VALUES ('"+urlID+"','"+url+"','')";
+			//System.out.println("Executing "+query);
+			stat.executeUpdate( query );
+			urlID++;
+			if (urlID % 100 == 0) 
+				System.out.println(urlID);
+		} finally {
+			lock.unlock();
 		}
 	}
 
@@ -105,13 +107,11 @@ public class Crawler implements Runnable
 			return false;
 		else if (!link.substring(0, 4).equals("http"))
 			return false;
-		else if (link.substring(link.length() - 4, link.length()).equals(".PDF"))
+		else if (link.contains("Special:UserLogin&returnto=Main_Page&returntoquery=diff"))
 			return false;
-		else if (link.substring(link.length() - 4, link.length()).equals(".pdf"))
+		else if (notHtml.contains(link.substring(link.length() - 4)))
 			return false;
-		else if (link.substring(link.length() - 4, link.length()).equals(".doc"))
-			return false;
-		else if (link.substring(link.length() - 4, link.length()).equals(".jpg"))
+		else if (notHtml.contains(link.substring(link.length() - 3)))
 			return false;
 		else 
 			return true;
@@ -155,9 +155,6 @@ public class Crawler implements Runnable
 					}
 				}
 			}
-			count++;
-			if (count % 100 == 0) 
-				System.out.println(count);
 		} catch (Exception e) {
 
 			//e.printStackTrace();
