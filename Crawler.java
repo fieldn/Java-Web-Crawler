@@ -39,9 +39,7 @@ public class Crawler implements Runnable
 	Crawler() {
 		try {
 			this.connection = openConnection();
-		} catch(Exception e) {
-
-		}
+		} catch(Exception e) { }
 	}
 
 	public static void readProperties() throws IOException {
@@ -69,8 +67,7 @@ public class Crawler implements Runnable
 		// Delete the table first if any
 		try {
 			stat.executeUpdate("DROP TABLE URLS");
-		} catch (Exception e) {
-		}
+		} catch (Exception e) { }
 
 		// Create the table
 		stat.executeUpdate("CREATE TABLE URLS (urlid INT, url VARCHAR(512), description VARCHAR(200), image VARCHAR(512))");
@@ -80,11 +77,11 @@ public class Crawler implements Runnable
 		return knownUrls.contains(url);
 	}
 
-	public void insertURLInDB( String url, String img) throws SQLException, IOException {
+	public void insertURLInDB( String url, String desc, String img) throws SQLException, IOException {
 		Statement stat = connection.createStatement();
 		lock.lock();
 		try {
-			String query = "INSERT INTO urls VALUES ('"+urlID+"','"+url+"','','"+img+"')";
+			String query = "INSERT INTO urls VALUES ('"+urlID+"','"+url+"','"+desc+"','"+img+"')";
 			//System.out.println("Executing "+query);
 			stat.executeUpdate( query );
 			urlID++;
@@ -133,25 +130,70 @@ public class Crawler implements Runnable
 		}
 	}
 
+	static String getImage(Document doc) {
+		String img = "";
+		Elements images = doc.select("img");
+		for (Element image : images) {
+			if (!image.attr("abs:src").equals("https://www.cs.purdue.edu/images/logo.svg")) {
+				img = image.attr("abs:src");
+				break;
+			} else {
+				if (img.equals(""))
+					img = image.attr("abs:src");
+			}
+		}
+		return img;
+	}
+
+	static String getDescription(Document doc) {
+		StringBuilder desc = new StringBuilder();
+		desc.append(doc.title());
+		desc.append(" | ");
+		Elements h1 = doc.select("h1");
+		for (Element h : h1) {
+			if (h.text().trim().equals(""))
+				continue;
+			desc.append(h.text() + " | ");
+			if (desc.length() >= 197)
+				return desc.toString().substring(0, 197);
+		}
+		Elements h2 = doc.select("h2");
+		for (Element h : h2) {
+			if (h.text().trim().equals(""))
+				continue;
+			desc.append(h.text() + " | ");
+			if (desc.length() >= 197)
+				return desc.toString().substring(0, 197);
+		}
+		Elements h3 = doc.select("h3");
+		for (Element h : h3) {
+			if (h.text().trim().equals(""))
+				continue;
+			desc.append(h.text() + " | ");
+			if (desc.length() >= 197)
+				return desc.toString().substring(0, 197);
+		}
+		Elements ps = doc.select("p");
+		for (Element h : ps) {
+			if (h.text().trim().equals(""))
+				continue;
+			desc.append(h.text() + " | ");
+			if (desc.length() >= 197)
+				return desc.toString().substring(0, 197);
+		}
+		return desc.toString().substring(0, 197);
+	}
+
 	public void fetchURL() {
 		try {
 			String currentUrl = urlQueue.remove();
-			String img = "";
 			Document doc = Jsoup.connect(currentUrl).get();
 			parseText(doc.text(), currentUrl);
 
-			Elements images = doc.select("img");
-			for (Element image : images) {
-				if (!image.attr("abs:src").equals("https://www.cs.purdue.edu/images/logo.svg")) {
-					img = image.attr("abs:src");
-					break;
-				} else {
-					if (img.equals(""))
-						img = image.attr("abs:src");
-				}
-			}
-			
-			System.out.println("image: " + img);
+			String description = getDescription(doc) + "...";
+			//System.out.println(description);
+			String img = getImage(doc);
+
 			Elements links = doc.select("a[href]");
 			for (Element l : links) {
 				String link = l.attr("abs:href");
@@ -159,17 +201,14 @@ public class Crawler implements Runnable
 				if (validUrl(link)) {
 					// Check if it is already found
 					if (!urlFound(link)) {
-						insertURLInDB(link, img);
+						insertURLInDB(link, description, img);
 						knownUrls.add(link);
 						urlQueue.add(link);
 						//System.out.println(link);
 					}
 				}
 			}
-		} catch (Exception e) {
-
-			//e.printStackTrace();
-		}
+		} catch (Exception e) { }
 	}
 
 	public void run() {
