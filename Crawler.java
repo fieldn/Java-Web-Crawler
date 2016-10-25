@@ -73,18 +73,18 @@ public class Crawler implements Runnable
 		}
 
 		// Create the table
-		stat.executeUpdate("CREATE TABLE URLS (urlid INT, url VARCHAR(512), description VARCHAR(200))");
+		stat.executeUpdate("CREATE TABLE URLS (urlid INT, url VARCHAR(512), description VARCHAR(200), image VARCHAR(512))");
 	}
 
 	public boolean urlFound(String url) throws IOException {
 		return knownUrls.contains(url);
 	}
 
-	public void insertURLInDB( String url) throws SQLException, IOException {
+	public void insertURLInDB( String url, String img) throws SQLException, IOException {
 		Statement stat = connection.createStatement();
 		lock.lock();
 		try {
-			String query = "INSERT INTO urls VALUES ('"+urlID+"','"+url+"','')";
+			String query = "INSERT INTO urls VALUES ('"+urlID+"','"+url+"','','"+img+"')";
 			//System.out.println("Executing "+query);
 			stat.executeUpdate( query );
 			urlID++;
@@ -136,11 +136,22 @@ public class Crawler implements Runnable
 	public void fetchURL() {
 		try {
 			String currentUrl = urlQueue.remove();
+			String img = "";
 			Document doc = Jsoup.connect(currentUrl).get();
 			parseText(doc.text(), currentUrl);
 
-			//Element image = doc.select("img");
-			//System.out.println("image: " + image.text());
+			Elements images = doc.select("img");
+			for (Element image : images) {
+				if (!image.attr("abs:src").equals("https://www.cs.purdue.edu/images/logo.svg")) {
+					img = image.attr("abs:src");
+					break;
+				} else {
+					if (img.equals(""))
+						img = image.attr("abs:src");
+				}
+			}
+			
+			System.out.println("image: " + img);
 			Elements links = doc.select("a[href]");
 			for (Element l : links) {
 				String link = l.attr("abs:href");
@@ -148,7 +159,7 @@ public class Crawler implements Runnable
 				if (validUrl(link)) {
 					// Check if it is already found
 					if (!urlFound(link)) {
-						insertURLInDB(link);
+						insertURLInDB(link, img);
 						knownUrls.add(link);
 						urlQueue.add(link);
 						//System.out.println(link);
