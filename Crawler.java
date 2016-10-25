@@ -38,7 +38,7 @@ public class Crawler implements Runnable
 
 	Crawler() {
 		try {
-		this.connection = openConnection();
+			this.connection = openConnection();
 		} catch(Exception e) {
 
 		}
@@ -77,10 +77,7 @@ public class Crawler implements Runnable
 	}
 
 	public boolean urlFound(String url) throws IOException {
-		if (knownUrls.contains(url))
-			return true;
-		else 
-			return false;
+		return knownUrls.contains(url);
 	}
 
 	public void insertURLInDB( String url) throws SQLException, IOException {
@@ -91,8 +88,10 @@ public class Crawler implements Runnable
 			//System.out.println("Executing "+query);
 			stat.executeUpdate( query );
 			urlID++;
-			if (urlID % 100 == 0) 
+			if (urlID % 100 == 0) {
 				System.out.println(urlID);
+				System.out.println(allWords.size());
+			}
 		} finally {
 			lock.unlock();
 		}
@@ -118,7 +117,7 @@ public class Crawler implements Runnable
 	}
 
 	public void parseText(String text, String url) {
-		String[] arr = text.toLowerCase().trim().split("[ \"\t\"»•.?,–&:©/;*]+");
+		String[] arr = text.toLowerCase().trim().split("[^a-zA-Z0-9'–-]");
 		for (String s: arr) {
 			if (stopWords.contains(s) || nonWords.contains(s)) {
 				continue;
@@ -132,7 +131,6 @@ public class Crawler implements Runnable
 				}
 			}
 		}
-		//System.out.println(allWords.size());
 	}
 
 	public void fetchURL() {
@@ -141,6 +139,8 @@ public class Crawler implements Runnable
 			Document doc = Jsoup.connect(currentUrl).get();
 			parseText(doc.text(), currentUrl);
 
+			//Element image = doc.select("img");
+			//System.out.println("image: " + image.text());
 			Elements links = doc.select("a[href]");
 			for (Element l : links) {
 				String link = l.attr("abs:href");
@@ -182,7 +182,7 @@ public class Crawler implements Runnable
 			e.printStackTrace();
 		}
 
-		Thread threads[] = new Thread[10];
+		Thread threads[] = new Thread[8];
 		for (int i = 0; i < threads.length; i++) {
 			threads[i] = new Thread(new Crawler());
 			threads[i].start();
