@@ -105,6 +105,8 @@ public class Crawler implements Runnable
 			return false;
 		else if (link.contains("Special:UserLogin&returnto=Main_Page&returntoquery=diff"))
 			return false;
+		else if (link.contains("weekly_blogging?do=login&sectok="))
+			return false;
 		else if (notHtml.contains(link.substring(link.length() - 4)))
 			return false;
 		else if (notHtml.contains(link.substring(link.length() - 3)))
