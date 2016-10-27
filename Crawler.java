@@ -165,7 +165,6 @@ public class Crawler implements Runnable
 				continue;
 			} else {
 				if (allWords.containsKey(s)) {
-					//System.out.println("URL: " + url + " ID: " + urlsToIds.get(url));
 					allWords.get(s).add(urlsToIds.get(url));
 				} else {
 					HashSet<Integer> newList = new HashSet<Integer>();
@@ -250,13 +249,14 @@ public class Crawler implements Runnable
 				// Check it's a valid URL
 				if (validUrl(link)) {
 					// Check if it is already found
-					if (!urlFound(link) && knownUrls.size() <= 10000) {
+					if (!urlFound(link) && urlID <= 12000) {
 						knownUrls.add(link);
 						urlQueue.add(link);
 					}
 				}
 			}
 		} catch (Exception e) { 
+			knownUrls.add(link);
 				//e.printStackTrace();
 		}
 	}
