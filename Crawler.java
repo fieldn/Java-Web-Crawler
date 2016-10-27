@@ -14,8 +14,10 @@ public class Crawler implements Runnable
 	Connection connection;
 	static Deque<String> urlQueue = new ConcurrentLinkedDeque<String>();
 	static Set<String> knownUrls = new ConcurrentSkipListSet<String>();
-	static Map<String, ArrayList<String>> allWords = new HashMap<String, ArrayList<String>>();
+	static Map<String, HashSet<Integer>> allWords = new HashMap<String, HashSet<Integer>>();
+	static Map<String,Integer> urlsToIds = new ConcurrentHashMap<String,Integer>();
 	static int urlID = 0;
+	static int wordID = 0;
 	static public Properties props;
 	public static int count = 0;
 	private final ReentrantLock lock = new ReentrantLock();
@@ -67,14 +69,46 @@ public class Crawler implements Runnable
 		// Delete the table first if any
 		try {
 			stat.executeUpdate("DROP TABLE URLS");
+			stat.executeUpdate("DROP TABLE WORDS");
+			stat.executeUpdate("DROP TABLE WORDURLS");
 		} catch (Exception e) { }
 
 		// Create the table
 		stat.executeUpdate("CREATE TABLE URLS (urlid INT, url VARCHAR(512), description VARCHAR(200), image VARCHAR(512))");
+		stat.executeUpdate("CREATE TABLE WORDS (wordid INT, word VARCHAR(32))");
+		stat.executeUpdate("CREATE TABLE WORDURLS (wordid INT, urlid INT)");
 	}
 
 	public boolean urlFound(String url) throws IOException {
 		return knownUrls.contains(url);
+	}
+
+	public void insertWordsToUrlsInDB(int wordID, String word) throws SQLException, IOException {
+		HashSet<Integer> urls = allWords.get(word);
+		PreparedStatement statement = connection.prepareStatement("INSERT INTO wordurls VALUES ( ?, ?)");
+
+		for (Integer i : urls) {
+			int in = Integer.valueOf(i);
+			statement.setInt(1, wordID);
+			statement.setInt(2, in);
+			statement.addBatch();
+		}
+		statement.executeBatch();
+	}
+
+	public void insertWordsInDB() throws SQLException, IOException {
+		System.out.println("this is supposed to print");
+		PreparedStatement statement = connection.prepareStatement("INSERT INTO words VALUES ( ?, ?)");
+
+		for (String s : allWords.keySet()) {
+			System.out.println(s);
+			statement.setInt(1, wordID);
+			statement.setString(2, s);
+			statement.addBatch();
+			insertWordsToUrlsInDB(wordID, s);
+			wordID++;
+		}
+		statement.executeBatch();
 	}
 
 	public void insertURLInDB( String url, String desc, String img) throws SQLException, IOException {
@@ -84,7 +118,9 @@ public class Crawler implements Runnable
 			String query = "INSERT INTO urls VALUES ('"+urlID+"','"+url+"','"+desc+"','"+img+"')";
 			//System.out.println("Executing "+query);
 			stat.executeUpdate( query );
+			urlsToIds.put(url, urlID);
 			urlID++;
+			knownUrls.add(url);
 			if (urlID % 100 == 0) {
 				System.out.println(urlID);
 				System.out.println(allWords.size());
@@ -117,15 +153,20 @@ public class Crawler implements Runnable
 
 	public void parseText(String text, String url) {
 		String[] arr = text.toLowerCase().trim().split("[^a-zA-Z0-9'–-]");
-		for (String s: arr) {
+		for (String st : arr) {
+			if (st.length() == 0 || st.length() == 1) {
+				continue;
+			}
+			String s = (st.length() > 32) ? st.substring(0,32) : st;
 			if (stopWords.contains(s) || nonWords.contains(s)) {
 				continue;
 			} else {
 				if (allWords.containsKey(s)) {
-					allWords.get(s).add(url);
+					//System.out.println("URL: " + url + " ID: " + urlsToIds.get(url));
+					allWords.get(s).add(urlsToIds.get(url));
 				} else {
-					ArrayList<String> newList = new ArrayList<String>();
-					newList.add(url);
+					HashSet<Integer> newList = new HashSet<Integer>();
+					newList.add(urlsToIds.get(url));
 					allWords.put(s, newList);
 				}
 			}
@@ -156,7 +197,7 @@ public class Crawler implements Runnable
 			if (h.text().trim().equals(""))
 				continue;
 			desc.append(h.text() + " | ");
-			if (desc.length() >= 197)
+			if (desc.length() > 197)
 				return desc.toString().substring(0, 197);
 		}
 		Elements h2 = doc.select("h2");
@@ -164,7 +205,7 @@ public class Crawler implements Runnable
 			if (h.text().trim().equals(""))
 				continue;
 			desc.append(h.text() + " | ");
-			if (desc.length() >= 197)
+			if (desc.length() > 197)
 				return desc.toString().substring(0, 197);
 		}
 		Elements h3 = doc.select("h3");
@@ -172,7 +213,7 @@ public class Crawler implements Runnable
 			if (h.text().trim().equals(""))
 				continue;
 			desc.append(h.text() + " | ");
-			if (desc.length() >= 197)
+			if (desc.length() > 197)
 				return desc.toString().substring(0, 197);
 		}
 		Elements ps = doc.select("p");
@@ -180,20 +221,21 @@ public class Crawler implements Runnable
 			if (h.text().trim().equals(""))
 				continue;
 			desc.append(h.text() + " | ");
-			if (desc.length() >= 197)
+			if (desc.length() > 197)
 				return desc.toString().substring(0, 197);
 		}
-		return desc.toString().substring(0, 197);
+		if (desc.length() > 197)
+			return desc.toString().substring(0, 197);
+		else
+			return desc.toString();
 	}
 
 	public void fetchURL() {
 		try {
 			String currentUrl = urlQueue.remove();
 			Document doc = Jsoup.connect(currentUrl).get();
-			parseText(doc.text(), currentUrl);
 
 			String description = getDescription(doc) + "...";
-			//System.out.println(description);
 			String img = getImage(doc);
 
 			Elements links = doc.select("a[href]");
@@ -202,23 +244,33 @@ public class Crawler implements Runnable
 				// Check it's a valid URL
 				if (validUrl(link)) {
 					// Check if it is already found
-					if (!urlFound(link)) {
+					if (!urlFound(link) && knownUrls.size() <= 10000) {
 						insertURLInDB(link, description, img);
+						parseText(doc.text(), currentUrl);
 						knownUrls.add(link);
 						urlQueue.add(link);
-						//System.out.println(link);
 					}
 				}
 			}
-		} catch (Exception e) { }
+		} catch (Exception e) { 
+				//e.printStackTrace();
+		}
 	}
 
 	public void run() {
+		boolean first = true;
 		while (true) {
 			if (!urlQueue.isEmpty()) {
 				this.fetchURL();
+			} else if (first == true) {
+				try { 
+					Thread.sleep(10000); 
+					first = false; 
+					System.out.println("Sleeping");
+				} catch (Exception e) {}
 			} else {
-				try { Thread.sleep(10); } catch (Exception e) {}
+				System.out.println("Breaking");
+				break;
 			}
 		}
 	}
@@ -230,6 +282,7 @@ public class Crawler implements Runnable
 			createDB();
 			urlQueue.add(root);
 			knownUrls.add(root);
+			urlsToIds.put(root, 0);
 		} catch( Exception e) {
 			e.printStackTrace();
 		}
@@ -241,7 +294,15 @@ public class Crawler implements Runnable
 		}
 
 		for (int i = 0; i < threads.length; i++) {
-			try { threads[i].join(); } catch (Exception e) {}
+			try { threads[i].join(); } catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+		Crawler c = new Crawler();
+		try {
+			c.insertWordsInDB();
+		} catch(Exception e) { 
+			e.printStackTrace();
 		}
 	}
 }
