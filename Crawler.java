@@ -112,16 +112,19 @@ public class Crawler implements Runnable
 	}
 
 	public void insertURLInDB( String url, String desc, String img) throws SQLException, IOException {
-		Statement stat = connection.createStatement();
+		PreparedStatement statement = connection.prepareStatement("INSERT INTO urls VALUES ( ?, ?, ?, ?)");
 		lock.lock();
 		try {
-			String query = "INSERT INTO urls VALUES ('"+urlID+"','"+url+"','"+desc+"','"+img+"')";
+			statement.setInt(1, urlID);
+			statement.setString(2, url);
+			statement.setString(3, desc);
+			statement.setString(4, img);
 			//System.out.println("Executing "+query);
-			stat.executeUpdate( query );
+			statement.executeUpdate();
 			urlsToIds.put(url, urlID);
 			urlID++;
 			knownUrls.add(url);
-			if (urlID % 100 == 0) {
+			if (urlID % 500 == 0) {
 				System.out.println(urlID);
 				System.out.println(allWords.size());
 			}
@@ -262,12 +265,6 @@ public class Crawler implements Runnable
 		while (true) {
 			if (!urlQueue.isEmpty()) {
 				this.fetchURL();
-			} else if (first == true) {
-				try { 
-					Thread.sleep(10000); 
-					first = false; 
-					System.out.println("Sleeping");
-				} catch (Exception e) {}
 			} else {
 				System.out.println("Breaking");
 				break;
@@ -288,7 +285,10 @@ public class Crawler implements Runnable
 		}
 
 		Thread threads[] = new Thread[8];
-		for (int i = 0; i < threads.length; i++) {
+		threads[0] = new Thread(new Crawler());
+		threads[0].start();
+		try{ Thread.sleep(10000); } catch(Exception e) {}
+		for (int i = 1; i < threads.length; i++) {
 			threads[i] = new Thread(new Crawler());
 			threads[i].start();
 		}
