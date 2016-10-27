@@ -176,7 +176,7 @@ public class Crawler implements Runnable
 		}
 	}
 
-	static String getImage(Document doc) {
+	String getImage(Document doc) {
 		String img = "";
 		Elements images = doc.select("img");
 		for (Element image : images) {
@@ -191,7 +191,7 @@ public class Crawler implements Runnable
 		return img;
 	}
 
-	static String getDescription(Document doc) {
+	String getDescription(Document doc) {
 		StringBuilder desc = new StringBuilder();
 		desc.append(doc.title());
 		desc.append(" | ");
@@ -241,6 +241,9 @@ public class Crawler implements Runnable
 			String description = getDescription(doc) + "...";
 			String img = getImage(doc);
 
+			insertURLInDB(currentUrl, description, img);
+			parseText(doc.text(), currentUrl);
+
 			Elements links = doc.select("a[href]");
 			for (Element l : links) {
 				String link = l.attr("abs:href");
@@ -248,8 +251,6 @@ public class Crawler implements Runnable
 				if (validUrl(link)) {
 					// Check if it is already found
 					if (!urlFound(link) && knownUrls.size() <= 10000) {
-						insertURLInDB(link, description, img);
-						parseText(doc.text(), currentUrl);
 						knownUrls.add(link);
 						urlQueue.add(link);
 					}
