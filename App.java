@@ -14,8 +14,16 @@ public class App extends NanoHTTPD {
 			"<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">" + 
 			"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" + 
 			"<title>Joogle Search Engine</title>" + 
-			"<link href=\"css/bootstrap.min.css\" rel=\"stylesheet\">" + 
+			"<script src=\"https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js\"></script>" + 
+			"<link rel=\"stylesheet\" href=\"http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css\">" +
+			"<script src=\"http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js\"></script>" +
+			"<link rel=\"stylesheet\" type=\"text/css\" href=\"styles/main.css\">" + 
 			"</head>"; 
+	static String tableStart = "<div class=\"container\">" + 
+			"<table class=\"table table-striped\">" + 
+			"<thead><tr><th><h3>Results</h3></th></tr></thead>";
+			
+	static String tableEnd = "</table></div>";
 
 	public App() throws IOException {
 		super(8080);
@@ -28,18 +36,21 @@ public class App extends NanoHTTPD {
 
 	public String fetchMatchingUrls(String word) {
 		try {
-			PreparedStatement stmt = connection.prepareStatement("SELECT url, description, image FROM words LEFT JOIN wordurls ON words.wordid=wordurls.wordid LEFT JOIN urls ON wordurls.urlid=urls.urlid WHERE word=?");
+			PreparedStatement stmt = connection.prepareStatement("SELECT url, description, image, title FROM words LEFT JOIN wordurls ON words.wordid=wordurls.wordid LEFT JOIN urls ON wordurls.urlid=urls.urlid WHERE word=?");
 			stmt.setString(1, word);
 			ResultSet result = stmt.executeQuery();
-			StringBuilder res = new StringBuilder();
+			StringBuilder res = new StringBuilder(tableStart);
 			while(result.next()) {
 				if (result.getString(1) == null)
 					continue;
 				String url = result.getString(1);
 				String description = result.getString(2);
 				String image = result.getString(3);
-				res.append("<p>" + url + "</p><p>" + description + "</p><p>" + image);
+				String title = resutl.getString(4);
+				String row = "<tr><td><img src=\"" + image + "\" alt=\"" + url + "\" border=3 height=150 width=150></img></td><td><a href=\"" + url + "\">" + title + "</a><br><p>" + description + "</p></td></tr>";
+				res.append(row);
 			}
+			res.append(tableEnd);
 			return res.toString();
 		} catch(Exception e) { e.printStackTrace(); }
 		return null;
