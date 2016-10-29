@@ -68,13 +68,13 @@ public class Crawler implements Runnable
 
 		// Delete the table first if any
 		try {
-			stat.executeUpdate("DROP TABLE URLS");
-			stat.executeUpdate("DROP TABLE WORDS");
-			stat.executeUpdate("DROP TABLE WORDURLS");
+			//stat.executeUpdate("DROP TABLE URLS");
+			//stat.executeUpdate("DROP TABLE WORDS");
+			//stat.executeUpdate("DROP TABLE WORDURLS");
 		} catch (Exception e) { }
 
 		// Create the table
-		stat.executeUpdate("CREATE TABLE URLS (urlid INT, url VARCHAR(512), description VARCHAR(200), image VARCHAR(512))");
+		stat.executeUpdate("CREATE TABLE URLS (urlid INT, url VARCHAR(512), description VARCHAR(200), image VARCHAR(512), title VARCHAR(32))");
 		stat.executeUpdate("CREATE TABLE WORDS (wordid INT, word VARCHAR(32))");
 		stat.executeUpdate("CREATE TABLE WORDURLS (wordid INT, urlid INT)");
 	}
@@ -111,19 +111,20 @@ public class Crawler implements Runnable
 		statement.executeBatch();
 	}
 
-	public void insertURLInDB( String url, String desc, String img) throws SQLException, IOException {
-		PreparedStatement statement = connection.prepareStatement("INSERT INTO urls VALUES ( ?, ?, ?, ?)");
+	public void insertURLInDB(String u, String d, String i, String t) throws SQLException, IOException {
+		PreparedStatement statement = connection.prepareStatement("INSERT INTO urls VALUES (?, ?, ?, ?, ?)");
 		lock.lock();
 		try {
 			statement.setInt(1, urlID);
-			statement.setString(2, url);
-			statement.setString(3, desc);
-			statement.setString(4, img);
+			statement.setString(2, u);
+			statement.setString(3, d);
+			statement.setString(4, i);
+			statement.setString(5, t);
 			//System.out.println("Executing "+query);
 			statement.executeUpdate();
-			urlsToIds.put(url, urlID);
+			urlsToIds.put(u, urlID);
 			urlID++;
-			knownUrls.add(url);
+			knownUrls.add(u);
 			if (urlID % 500 == 0) {
 				System.out.println(urlID);
 				System.out.println(allWords.size());
@@ -179,21 +180,19 @@ public class Crawler implements Runnable
 		String img = "";
 		Elements images = doc.select("img");
 		for (Element image : images) {
-			if (!image.attr("abs:src").equals("https://www.cs.purdue.edu/images/logo.svg")) {
+			if (!image.attr("abs:src").equals("https://www.cs.purdue.edu/images/logo.svg") &&
+				!image.attr("abs:src").equals("https://www.cs.purdue.edu//images/brand.svg")) {
 				img = image.attr("abs:src");
 				break;
-			} else {
-				if (img.equals(""))
-					img = image.attr("abs:src");
 			}
 		}
+		if (img.equals(""))
+			img = "https://www.cs.purdue.edu/images/logo.svg";
 		return img;
 	}
 
 	String getDescription(Document doc) {
 		StringBuilder desc = new StringBuilder();
-		desc.append(doc.title());
-		desc.append(" | ");
 		Elements h1 = doc.select("h1");
 		for (Element h : h1) {
 			if (h.text().trim().equals(""))
@@ -240,7 +239,9 @@ public class Crawler implements Runnable
 			String description = getDescription(doc) + "...";
 			String img = getImage(doc);
 
-			insertURLInDB(currentUrl, description, img);
+			String title = ((doc.title().length() > 32) ? (doc.title().substring(0,29) + "...") : doc.title());
+
+			insertURLInDB(currentUrl, description, img, title);
 			parseText(doc.text(), currentUrl);
 
 			Elements links = doc.select("a[href]");
@@ -249,14 +250,14 @@ public class Crawler implements Runnable
 				// Check it's a valid URL
 				if (validUrl(link)) {
 					// Check if it is already found
-					if (!urlFound(link) && urlID <= 12000) {
+					if (!urlFound(link) && knownUrls.size() <= 12000) {
 						knownUrls.add(link);
 						urlQueue.add(link);
 					}
 				}
 			}
 		} catch (Exception e) { 
-			knownUrls.add(link);
+			//knownUrls.add(link);
 				//e.printStackTrace();
 		}
 	}
