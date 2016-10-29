@@ -4,23 +4,28 @@ body {
 
 .navbar-brand>img {
 	height: inherit;
-    padding-bottom: 30px;
+	padding-bottom: 30px;
 }
 
 .input[type="file" i]::-webkit-file-upload-button, button {
-    background-color: #eee;
+	background-color: #eee;
 }
 
 .h7 {
 	font-size: 40px;
 }
 
-.blockrain-game-over-holder {
-   position: absolute;
-   top: 70%;
-   left: 50%;
-   width: 213px;
-   height: 500px;
-   /*margin-top: -250px;  Half the height */
-   margin-left: -106.5px; /* Half the width */
+img.perfect-fit {
+	width: auto;
+	height: auto;
+	min-width: 100%;
+	min-height: 100%;
+}
+div {
+	float: left;
+	margin-right: 20px;
+	width: 300px;
+	height: 300px;
+	overflow:hidden;  
+	background-color: #ccc;
 }
