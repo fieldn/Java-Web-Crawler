@@ -63,7 +63,7 @@ public class App extends NanoHTTPD {
 
 			PreparedStatement stmt2 = connection.prepareStatement("SELECT urls.urlid, url, description, image, title FROM words LEFT JOIN wordurls ON words.wordid=wordurls.wordid LEFT JOIN urls ON wordurls.urlid=urls.urlid WHERE word=?");
 			stmt2.setString(1, words[1]);
-			ResultSet result2 = stmt.executeQuery();
+			ResultSet result2 = stmt2.executeQuery();
 			while(result2.next()) {
 				if (result2.getString(2) == null)
 					continue;
