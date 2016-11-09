@@ -45,45 +45,40 @@ public class App extends NanoHTTPD {
 			HashMap<Integer, ArrayList<String>> wordMap2 = new HashMap<Integer, ArrayList<String>>();
 
 			String[] words = word.split(" ");
-			PreparedStatement stmt = connection.prepareStatement("SELECT urls.urlid, url, description, image, title FROM words LEFT JOIN wordurls ON words.wordid=wordurls.wordid LEFT JOIN urls ON wordurls.urlid=urls.urlid WHERE word=?");
-			stmt.setString(1, words[0]);
 
-			ResultSet result = stmt.executeQuery();
-			while(result.next()) {
-				if (result.getString(2) == null)
-					continue;
-				ArrayList<String> res = new ArrayList<String>();
-				res.add(result.getString(2));
-				res.add(result.getString(3));
-				res.add(result.getString(4));
-				res.add(result.getString(5));
-				int urlid = result.getInt(1);
-				wordMap1.put(urlid, res);
-			}
+			List<Map<Integer, List<String>>> allWordResults = new ArrayList<HashMap<Integer, ArrayList<String>>>(); 
+			for (int i = 0; i < words.length; i++) {
+				PreparedStatement stmt = connection.prepareStatement("SELECT urls.urlid, url, description, image, title FROM words LEFT JOIN wordurls ON words.wordid=wordurls.wordid LEFT JOIN urls ON wordurls.urlid=urls.urlid WHERE word=?");
+				stmt.setString(1, words[i]);
 
-			PreparedStatement stmt2 = connection.prepareStatement("SELECT urls.urlid, url, description, image, title FROM words LEFT JOIN wordurls ON words.wordid=wordurls.wordid LEFT JOIN urls ON wordurls.urlid=urls.urlid WHERE word=?");
-			stmt2.setString(1, words[1]);
-			ResultSet result2 = stmt2.executeQuery();
-			while(result2.next()) {
-				if (result2.getString(2) == null)
-					continue;
-				ArrayList<String> res = new ArrayList<String>();
-				res.add(result2.getString(2));
-				res.add(result2.getString(3));
-				res.add(result2.getString(4));
-				res.add(result2.getString(5));
-				int urlid = result2.getInt(1);
-				wordMap2.put(urlid, res);
+				ResultSet result = stmt.executeQuery();
+				while(result.next()) {
+					if (result.getString(2) == null)
+						continue;
+					ArrayList<String> res = new ArrayList<String>();
+					Map<Integer, List<String>> map = new HashMap<Integer, ArrayList<String>>();
+					res.add(result.getString(2));
+					res.add(result.getString(3));
+					res.add(result.getString(4));
+					res.add(result.getString(5));
+					int urlid = result.getInt(1);
+					map.put(urlid, res);
+					allWordResults.add(map);
+				}
 			}
 
 			ArrayList<ArrayList<String>> firstToShow = new ArrayList<ArrayList<String>>();
 			ArrayList<ArrayList<String>> secondToShow = new ArrayList<ArrayList<String>>();
 
-			for (Integer i : wordMap1.keySet()) {
-				if (wordMap2.containsKey(i))
-					firstToShow.add(wordMap1.get(i));
-				else 
-					secondToShow.add(wordMap1.get(i));
+			for (int i = 0; i < words.length; i++) {
+				Map<Integer, List<String>> currentMap = allWordResults.get(i);
+				for (Integer i : currentMap.keySet()) {
+					//TODO: FINISH FIXING
+					if (wordMap2.containsKey(i))
+						firstToShow.add(wordMap1.get(i));
+					else 
+						secondToShow.add(wordMap1.get(i));
+				}
 			}
 
 			for (Integer i : wordMap2.keySet()) {
@@ -100,10 +95,10 @@ public class App extends NanoHTTPD {
 				String image = l.get(2);
 				String title = l.get(3);
 				if (color) {
-					row = bg1 + "<td><div><a href=\"" + url + "\"><img src=\"" + image + "\" width='128' height='128' alt=\"\" border=3 background=#FFFFFF></img></a></div></td><td width='%80'><a href=\"" + url + "\">" + title + "</a><br><p>" + description + "</p><br><a href=\"" + url + "\">" + url + "</td></tr>";
+					row = bg1 + "<td><div><a href=\"" + url + "\"><img src=\"" + image + "\" width='128' height='128' alt=\"\" border=3 background=#FFFFFF></img></a></div></td><td width='80%'><a href=\"" + url + "\">" + title + "</a><br><p>" + description + "</p><br><a href=\"" + url + "\">" + url + "</td></tr>";
 					color = !color;
 				} else {
-					row = bg2 + "<td><div><a href=\"" + url + "\"><img src=\"" + image + "\" width='128' height='128' alt=\"\" border=3 background=#FFFFFF></img></a></div></td><td width='%80'><a href=\"" + url + "\">" + title + "</a><br><p>" + description + "</p><br><a href=\"" + url + "\">" + url + "</td></tr>";
+					row = bg2 + "<td><div><a href=\"" + url + "\"><img src=\"" + image + "\" width='128' height='128' alt=\"\" border=3 background=#FFFFFF></img></a></div></td><td width='80%'><a href=\"" + url + "\">" + title + "</a><br><p>" + description + "</p><br><a href=\"" + url + "\">" + url + "</td></tr>";
 					color = !color;
 				}
 				res.append(row);
@@ -116,10 +111,10 @@ public class App extends NanoHTTPD {
 				String image = l.get(2);
 				String title = l.get(3);
 				if (color) {
-					row = bg1 + "<td><div><a href=\"" + url + "\"><img src=\"" + image + "\" width='128' height='128' alt=\"\" border=3 background=#FFFFFF></img></a></div></td><td width='%80'><a href=\"" + url + "\">" + title + "</a><br><p>" + description + "</p><br><a href=\"" + url + "\">" + url + "</td></tr>";
+					row = bg1 + "<td><div><a href=\"" + url + "\"><img src=\"" + image + "\" width='128' height='128' alt=\"\" border=3 background=#FFFFFF></img></a></div></td><td width='80%'><a href=\"" + url + "\">" + title + "</a><br><p>" + description + "</p><br><a href=\"" + url + "\">" + url + "</td></tr>";
 					color = !color;
 				} else {
-					row = bg2 + "<td><div><a href=\"" + url + "\"><img src=\"" + image + "\" width='128' height='128' alt=\"\" border=3 background=#FFFFFF></img></a></div></td><td width='%80'><a href=\"" + url + "\">" + title + "</a><br><p>" + description + "</p><br><a href=\"" + url + "\">" + url + "</td></tr>";
+					row = bg2 + "<td><div><a href=\"" + url + "\"><img src=\"" + image + "\" width='128' height='128' alt=\"\" border=3 background=#FFFFFF></img></a></div></td><td width='80%'><a href=\"" + url + "\">" + title + "</a><br><p>" + description + "</p><br><a href=\"" + url + "\">" + url + "</td></tr>";
 					color = !color;
 				}
 				res.append(row);
