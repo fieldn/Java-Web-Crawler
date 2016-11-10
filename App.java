@@ -49,19 +49,21 @@ public class App extends NanoHTTPD {
 				stmt.setString(1, words[i]);
 
 				ResultSet result = stmt.executeQuery();
+
+				// Iterate over all results from the query
+				Map<Integer, List<String>> map = new HashMap<Integer, ArrayList<String>>();
 				while(result.next()) {
 					if (result.getString(2) == null)
 						continue;
 					ArrayList<String> res = new ArrayList<String>();
-					Map<Integer, List<String>> map = new HashMap<Integer, ArrayList<String>>();
 					res.add(result.getString(2));
 					res.add(result.getString(3));
 					res.add(result.getString(4));
 					res.add(result.getString(5));
 					int urlid = result.getInt(1);
 					map.put(urlid, res);
-					allWordResults.add(map);
 				}
+				allWordResults.add(map);
 			}
 
 			List<List<String>>[] showPriority = new ArrayList<ArrayList<String>>[words.length];
