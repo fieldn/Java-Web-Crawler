@@ -41,9 +41,6 @@ public class App extends NanoHTTPD {
 
 	public String fetchMultiWord(String word) {
 		try {
-			HashMap<Integer, ArrayList<String>> wordMap1 = new HashMap<Integer, ArrayList<String>>();
-			HashMap<Integer, ArrayList<String>> wordMap2 = new HashMap<Integer, ArrayList<String>>();
-
 			String[] words = word.split(" ");
 
 			List<Map<Integer, List<String>>> allWordResults = new ArrayList<HashMap<Integer, ArrayList<String>>>(); 
@@ -67,57 +64,39 @@ public class App extends NanoHTTPD {
 				}
 			}
 
-			ArrayList<ArrayList<String>> firstToShow = new ArrayList<ArrayList<String>>();
-			ArrayList<ArrayList<String>> secondToShow = new ArrayList<ArrayList<String>>();
+			List<List<String>>[] showPriority = new ArrayList<ArrayList<String>>[words.length];
 
 			for (int i = 0; i < words.length; i++) {
 				Map<Integer, List<String>> currentMap = allWordResults.get(i);
 				for (Integer i : currentMap.keySet()) {
-					//TODO: FINISH FIXING
-					if (wordMap2.containsKey(i))
-						firstToShow.add(wordMap1.get(i));
-					else 
-						secondToShow.add(wordMap1.get(i));
+                    int count = 0;
+                    for (int j = i + 1; j < words.length; j++) {
+                        Map<Integer, List<String>> subMap = allWordResults.get(j);
+					    if (subMap.remove(i) != null)
+                            count++;
+                    }
+                    showPriority[count].add(currentMap.get(i));
 				}
-			}
-
-			for (Integer i : wordMap2.keySet()) {
-				if (!wordMap1.containsKey(i))
-					secondToShow.add(wordMap2.get(i));
 			}
 
 			StringBuilder res = new StringBuilder(tableStart);
 
-			for (ArrayList<String> l : firstToShow) {
-				String row;
-				String url = l.get(0);
-				String description = l.get(1);
-				String image = l.get(2);
-				String title = l.get(3);
-				if (color) {
-					row = bg1 + "<td><div><a href=\"" + url + "\"><img src=\"" + image + "\" width='128' height='128' alt=\"\" border=3 background=#FFFFFF></img></a></div></td><td width='80%'><a href=\"" + url + "\">" + title + "</a><br><p>" + description + "</p><br><a href=\"" + url + "\">" + url + "</td></tr>";
-					color = !color;
-				} else {
-					row = bg2 + "<td><div><a href=\"" + url + "\"><img src=\"" + image + "\" width='128' height='128' alt=\"\" border=3 background=#FFFFFF></img></a></div></td><td width='80%'><a href=\"" + url + "\">" + title + "</a><br><p>" + description + "</p><br><a href=\"" + url + "\">" + url + "</td></tr>";
-					color = !color;
-				}
-				res.append(row);
-			}
-
-			for (ArrayList<String> l : secondToShow) {
-				String row;
-				String url = l.get(0);
-				String description = l.get(1);
-				String image = l.get(2);
-				String title = l.get(3);
-				if (color) {
-					row = bg1 + "<td><div><a href=\"" + url + "\"><img src=\"" + image + "\" width='128' height='128' alt=\"\" border=3 background=#FFFFFF></img></a></div></td><td width='80%'><a href=\"" + url + "\">" + title + "</a><br><p>" + description + "</p><br><a href=\"" + url + "\">" + url + "</td></tr>";
-					color = !color;
-				} else {
-					row = bg2 + "<td><div><a href=\"" + url + "\"><img src=\"" + image + "\" width='128' height='128' alt=\"\" border=3 background=#FFFFFF></img></a></div></td><td width='80%'><a href=\"" + url + "\">" + title + "</a><br><p>" + description + "</p><br><a href=\"" + url + "\">" + url + "</td></tr>";
-					color = !color;
-				}
-				res.append(row);
+            for (List<List<String>> currentPrio : showPriority) {
+                for (<List<String> urlToAdd : currentPrio) {
+                    String row;
+                    String url = urlToAdd.get(0);
+                    String description = urlToAdd.get(1);
+                    String image = urlToAdd.get(2);
+                    String title = urlToAdd.get(3);
+                    if (color) {
+                        row = bg1 + "<td><div><a href=\"" + url + "\"><img src=\"" + image + "\" width='128' height='128' alt=\"\" border=3 background=#FFFFFF></img></a></div></td><td width='80%'><a href=\"" + url + "\">" + title + "</a><br><p>" + description + "</p><br><a href=\"" + url + "\">" + url + "</td></tr>";
+                        color = !color;
+                    } else {
+                        row = bg2 + "<td><div><a href=\"" + url + "\"><img src=\"" + image + "\" width='128' height='128' alt=\"\" border=3 background=#FFFFFF></img></a></div></td><td width='80%'><a href=\"" + url + "\">" + title + "</a><br><p>" + description + "</p><br><a href=\"" + url + "\">" + url + "</td></tr>";
+                        color = !color;
+                    }
+                    res.append(row);
+                }
 			}
 
 			res.append(tableEnd);
