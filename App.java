@@ -43,7 +43,7 @@ public class App extends NanoHTTPD {
 		try {
 			String[] words = word.split(" ");
 
-			List<Map<Integer, List<String>>> allWordResults = new ArrayList<HashMap<Integer, ArrayList<String>>>(); 
+			List<HashMap<Integer, ArrayList<String>>> allWordResults = new ArrayList<HashMap<Integer, ArrayList<String>>>(); 
 			for (int i = 0; i < words.length; i++) {
 				PreparedStatement stmt = connection.prepareStatement("SELECT urls.urlid, url, description, image, title FROM words LEFT JOIN wordurls ON words.wordid=wordurls.wordid LEFT JOIN urls ON wordurls.urlid=urls.urlid WHERE word=?");
 				stmt.setString(1, words[i]);
@@ -51,7 +51,7 @@ public class App extends NanoHTTPD {
 				ResultSet result = stmt.executeQuery();
 
 				// Iterate over all results from the query
-				Map<Integer, List<String>> map = new HashMap<Integer, ArrayList<String>>();
+				HashMap<Integer, ArrayList<String>> map = new HashMap<Integer, ArrayList<String>>();
 				while(result.next()) {
 					if (result.getString(2) == null)
 						continue;
@@ -66,25 +66,43 @@ public class App extends NanoHTTPD {
 				allWordResults.add(map);
 			}
 
-			List<List<String>>[] showPriority = new ArrayList<ArrayList<String>>[words.length];
+			ArrayList<ArrayList<ArrayList<String>>> showPriority = new ArrayList<ArrayList<ArrayList<String>>>(words.length);
+			for (int i = 0; i < words.length; i++) {
+				ArrayList<ArrayList<String>> newNewList = new ArrayList<ArrayList<String>>();
+				ArrayList<String> newList = new ArrayList<String>();
+				newNewList.add(newList);
+				showPriority.add(newNewList);
+			}
 
 			for (int i = 0; i < words.length; i++) {
-				Map<Integer, List<String>> currentMap = allWordResults.get(i);
-				for (Integer i : currentMap.keySet()) {
-                    int count = 0;
-                    for (int j = i + 1; j < words.length; j++) {
-                        Map<Integer, List<String>> subMap = allWordResults.get(j);
-					    if (subMap.remove(i) != null)
-                            count++;
-                    }
-                    showPriority[count].add(currentMap.get(i));
+				Map<Integer, ArrayList<String>> currentMap = allWordResults.get(i);
+				for (Integer urlToRemove : currentMap.keySet()) {
+					int count = 0;
+					for (int j = i + 1; j < words.length; j++) {
+						Map<Integer, ArrayList<String>> subMap = allWordResults.get(j);
+						if (subMap.containsKey(urlToRemove)) {
+							count++;
+							subMap.remove(urlToRemove);
+						}
+					}
+					showPriority.get(count).add(currentMap.get(urlToRemove));
 				}
 			}
 
 			StringBuilder res = new StringBuilder(tableStart);
 
-            for (List<List<String>> currentPrio : showPriority) {
-                for (<List<String> urlToAdd : currentPrio) {
+			for (int i = showPriority.size() - 1; i >= 0; i--) {
+				ArrayList<ArrayList<String>> currentPrio = showPriority.get(i);
+				if (currentPrio == null || currentPrio.size() == 0) {
+					System.out.println("currPrio fucked");
+					continue;
+				}
+                for (int j = 0; j < currentPrio.size(); j++) {
+					ArrayList<String> urlToAdd = currentPrio.get(j);
+					if (urlToAdd == null || urlToAdd.size() != 4) {
+						System.out.println("urlToAdd fucked");
+						continue;
+					}
                     String row;
                     String url = urlToAdd.get(0);
                     String description = urlToAdd.get(1);
